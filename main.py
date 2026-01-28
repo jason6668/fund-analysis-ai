@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 ===================================
-A股自选股智能分析系统 - 主调度程序
+基金智能分析系统 - 主调度程序
 ===================================
 
 职责：
-1. 协调各模块完成股票分析流程
+1. 协调各模块完成基金分析流程
 2. 实现低并发的线程池调度
-3. 全局异常处理，确保单股失败不影响整体
+3. 全局异常处理，确保单个基金失败不影响整体
 4. 提供命令行入口
 
 使用方式：
@@ -15,11 +15,10 @@ A股自选股智能分析系统 - 主调度程序
     python main.py --debug      # 调试模式
     python main.py --dry-run    # 仅获取数据不分析
 
-交易理念（已融入分析）：
-- 严进策略：不追高，乖离率 > 5% 不买入
-- 趋势交易：只做 MA5>MA10>MA20 多头排列
-- 效率优先：关注筹码集中度好的股票
-- 买点偏好：缩量回踩 MA5/MA10 支撑
+投资理念（已融入分析）：
+- 稳健策略：不追高，短期涨幅 > 10% 谨慎
+- 趋势投资：只做中长期趋势向上的基金
+- 回调买入：优选回调至均线附近时介入
 """
 import os
 
@@ -120,18 +119,18 @@ logger = logging.getLogger(__name__)
 def parse_arguments() -> argparse.Namespace:
     """解析命令行参数"""
     parser = argparse.ArgumentParser(
-        description='A股自选股智能分析系统',
+        description='基金智能分析系统',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
   python main.py                    # 正常运行
   python main.py --debug            # 调试模式
   python main.py --dry-run          # 仅获取数据，不进行 AI 分析
-  python main.py --stocks 600519,000001  # 指定分析特定股票
+  python main.py --funds 000001,110022  # 指定分析特定基金
   python main.py --no-notify        # 不发送推送通知
-  python main.py --single-notify    # 启用单股推送模式（每分析完一只立即推送）
+  python main.py --single-notify    # 启用单基金推送模式（每分析完一只立即推送）
   python main.py --schedule         # 启用定时任务模式
-  python main.py --market-review    # 仅运行大盘复盘
+  python main.py --market-review    # 仅运行市场复盘
         '''
     )
     
@@ -148,9 +147,17 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     parser.add_argument(
+        '--funds',
+        type=str,
+        help='指定要分析的基金代码，逗号分隔（覆盖配置文件）'
+    )
+    
+    # 兼容旧参数名
+    parser.add_argument(
         '--stocks',
         type=str,
-        help='指定要分析的股票代码，逗号分隔（覆盖配置文件）'
+        dest='funds',
+        help=argparse.SUPPRESS  # 隐藏旧参数，但保持兼容性
     )
     
     parser.add_argument(
@@ -162,7 +169,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         '--single-notify',
         action='store_true',
-        help='启用单股推送模式：每分析完一只股票立即推送，而不是汇总推送'
+        help='启用单基金推送模式：每分析完一只基金立即推送，而不是汇总推送'
     )
     
     parser.add_argument(
@@ -208,10 +215,10 @@ def parse_arguments() -> argparse.Namespace:
 def run_full_analysis(
     config: Config,
     args: argparse.Namespace,
-    stock_codes: Optional[List[str]] = None
+    fund_codes: Optional[List[str]] = None
 ):
     """
-    执行完整的分析流程（个股 + 大盘复盘）
+    执行完整的分析流程（个基 + 市场复盘）
     
     这是定时任务调用的主函数
     """
@@ -226,9 +233,9 @@ def run_full_analysis(
             max_workers=args.workers
         )
         
-        # 1. 运行个股分析
+        # 1. 运行个基分析
         results = pipeline.run(
-            stock_codes=stock_codes,
+            stock_codes=fund_codes,
             dry_run=args.dry_run,
             send_notification=not args.no_notify
         )
@@ -351,7 +358,7 @@ def main() -> int:
     setup_logging(debug=args.debug, log_dir=config.log_dir)
     
     logger.info("=" * 60)
-    logger.info("A股自选股智能分析系统 启动")
+    logger.info("基金智能分析系统 启动")
     logger.info(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 60)
     
@@ -360,11 +367,11 @@ def main() -> int:
     for warning in warnings:
         logger.warning(warning)
     
-    # 解析股票列表
-    stock_codes = None
-    if args.stocks:
-        stock_codes = [code.strip() for code in args.stocks.split(',') if code.strip()]
-        logger.info(f"使用命令行指定的股票列表: {stock_codes}")
+    # 解析基金列表
+    fund_codes = None
+    if hasattr(args, 'funds') and args.funds:
+        fund_codes = [code.strip() for code in args.funds.split(',') if code.strip()]
+        logger.info(f"使用命令行指定的基金列表: {fund_codes}")
     
     # === 启动 WebUI (如果启用) ===
     # 优先级: 命令行参数 > 配置文件
@@ -422,7 +429,7 @@ def main() -> int:
             from src.scheduler import run_with_schedule
             
             def scheduled_task():
-                run_full_analysis(config, args, stock_codes)
+                run_full_analysis(config, args, fund_codes)
             
             run_with_schedule(
                 task=scheduled_task,
@@ -432,7 +439,7 @@ def main() -> int:
             return 0
         
         # 模式3: 正常单次运行
-        run_full_analysis(config, args, stock_codes)
+        run_full_analysis(config, args, fund_codes)
         
         logger.info("\n程序执行完成")
         

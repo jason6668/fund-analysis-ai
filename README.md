@@ -1,4 +1,4 @@
-# 📈 股票智能分析系统
+# 📈 基金智能分析系统
 
 [![GitHub stars](https://img.shields.io/github/stars/ZhuLinsen/daily_stock_analysis?style=social)](https://github.com/ZhuLinsen/daily_stock_analysis/stargazers)
 [![CI](https://github.com/ZhuLinsen/daily_stock_analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/ZhuLinsen/daily_stock_analysis/actions/workflows/ci.yml)
@@ -6,7 +6,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Ready-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 
-> 🤖 基于 AI 大模型的 A股/港股/美股自选股智能分析系统，每日自动分析并推送「决策仪表盘」到企业微信/飞书/Telegram/邮箱
+> 🤖 基于 AI 大模型的基金智能分析系统，每日自动分析并推送「投资决策仪表盘」到企业微信/飞书/Telegram/邮箱
 
 [English](docs/README_EN.md) | 简体中文
 
@@ -15,25 +15,25 @@
 ## ✨ 功能特性
 
 ### 🎯 核心功能
-- **AI 决策仪表盘** - 一句话核心结论 + 精确买卖点位 + 检查清单
-- **多维度分析** - 技术面 + 筹码分布 + 舆情情报 + 实时行情
-- **大盘复盘** - 每日市场概览、板块涨跌、北向资金
+- **AI 决策仪表盘** - 一句话核心结论 + 精确买卖时机 + 检查清单
+- **多维度分析** - 净值走势 + 持仓结构 + 基金经理分析 + 市场行情
+- **市场复盘** - 每日市场概览、板块涨跌、资金流向
 - **多渠道推送** - 支持企业微信、飞书、Telegram、邮件（自动识别）
 - **零成本部署** - GitHub Actions 免费运行，无需服务器
 - **💰 白嫖 Gemini API** - Google AI Studio 提供免费额度，个人使用完全够用
 - **🔄 多模型支持** - 支持 OpenAI 兼容 API（DeepSeek、通义千问等）作为备选
 
 ### 📊 数据来源
-- **行情数据**: AkShare（免费）、Tushare、Baostock、YFinance
+- **基金数据**: AkShare（免费）、天天基金、东方财富
 - **新闻搜索**: Tavily、SerpAPI、Bocha
 - **AI 分析**: 
   - 主力：Google Gemini（gemini-3-flash-preview）—— [免费获取](https://aistudio.google.com/)
   - 备选：应大家要求，也支持了OpenAI 兼容 API（DeepSeek、通义千问、Moonshot 等）
 
-### 🛡️ 交易理念内置
-- ❌ **严禁追高** - 乖离率 > 5% 自动标记「危险」
-- ✅ **趋势交易** - MA5 > MA10 > MA20 多头排列
-- 📍 **精确点位** - 买入价、止损价、目标价
+### 🛡️ 投资理念内置
+- ❌ **严禁追高** - 短期涨幅 > 10% 自动标记「危险」
+- ✅ **趋势投资** - 中长期趋势向上，回调买入
+- 📍 **精确时机** - 买入时机、止损位、目标收益
 - 📋 **检查清单** - 每项条件用 ✅⚠️❌ 标记
 
 ## 🚀 快速开始
@@ -87,7 +87,7 @@
 
 | Secret 名称 | 说明 | 必填 |
 |------------|------|:----:|
-| `STOCK_LIST` | 自选股代码，如 `600519,hk00700,AAPL,TSLA` | ✅ |
+| `FUND_LIST` | 自选基金代码，如 `000001,110022,161725,040046` | ✅ |
 | `TAVILY_API_KEYS` | [Tavily](https://tavily.com/) 搜索 API（新闻搜索） | 推荐 |
 | `BOCHA_API_KEYS` | [博查搜索](https://open.bocha.cn/) Web Search API（中文搜索优化，支持AI摘要，多个key用逗号分隔） | 可选 |
 | `SERPAPI_API_KEYS` | [SerpAPI](https://serpapi.com/) 备用搜索 | 可选 |
@@ -99,7 +99,7 @@
 
 #### 4. 手动测试
 
-`Actions` → `每日股票分析` → `Run workflow` → 选择模式 → `Run workflow`
+`Actions` → `每日基金分析` → `Run workflow` → 选择模式 → `Run workflow`
 
 #### 5. 完成！
 
@@ -114,27 +114,27 @@
 ### 决策仪表盘
 ```
 📊 2026-01-10 决策仪表盘
-3只股票 | 🟢买入:1 🟡观望:2 🔴卖出:0
+3只基金 | 🟢买入:1 🟡观望:2 🔴卖出:0
 
-🟢 买入 | 贵州茅台(600519)
-📌 缩量回踩MA5支撑，乖离率1.2%处于最佳买点
-💰 狙击: 买入1800 | 止损1750 | 目标1900
-✅多头排列 ✅乖离安全 ✅量能配合
+🟢 买入 | 易方达蓝筹精选(005827)
+📌 净值回调至20日均线支撑，近一年收益率28.5%处于稳健上升通道
+💰 操作建议: 逢低买入 | 止损-8% | 目标收益+15%
+✅趋势向上 ✅回调充分 ✅基金经理稳定
 
-🟡 观望 | 宁德时代(300750)
-📌 乖离率7.8%超过5%警戒线，严禁追高
-⚠️ 等待回调至MA5附近再考虑
+🟡 观望 | 兴全合润(163406)
+📌 短期涨幅12.8%超过10%警戒线，严禁追高
+⚠️ 等待回调至均线附近再考虑
 
 ---
 生成时间: 18:00
 ```
 
-### 大盘复盘
+### 市场复盘
 
-![大盘复盘推送效果](./sources/dapan_2026-01-13_22-14-52.png)
+![市场复盘推送效果](./sources/dapan_2026-01-13_22-14-52.png)
 
 ```
-🎯 2026-01-10 大盘复盘
+🎯 2026-01-10 市场复盘
 
 📊 主要指数
 - 上证指数: 3250.12 (🟢+0.85%)
@@ -169,8 +169,8 @@
 
 ### 功能特性
 
-- 📝 **配置管理** - 查看/修改 `.env` 里的自选股列表
-- 🚀 **快速分析** - 页面输入股票代码，一键触发分析
+- 📝 **配置管理** - 查看/修改 `.env` 里的自选基金列表
+- 🚀 **快速分析** - 页面输入基金代码，一键触发分析
 - 📊 **实时进度** - 分析任务状态实时更新，支持多任务并行
 
 ### API 接口
@@ -179,7 +179,7 @@
 |------|------|------|
 | `/` | GET | 配置管理页面 |
 | `/health` | GET | 健康检查 |
-| `/analysis?code=xxx` | GET | 触发单只股票异步分析 |
+| `/analysis?code=xxx` | GET | 触发单只基金异步分析 |
 | `/tasks` | GET | 查询所有任务状态 |
 | `/task?id=xxx` | GET | 查询单个任务状态 |
 
@@ -232,13 +232,13 @@ daily_stock_analysis/
 
 ### 🎯 功能增强
 - [x] 决策仪表盘
-- [x] 大盘复盘
+- [x] 市场复盘
 - [x] 定时推送
 - [x] GitHub Actions
-- [x] 港股支持
+- [x] 债券基金支持
 - [x] Web 管理界面 (简易版)
-- [x] 美股支持
-- [ ] 历史分析回测
+- [x] 海外基金支持
+- [ ] 历史收益回测
 
 ## 🤝 贡献
 
@@ -268,7 +268,7 @@ daily_stock_analysis/
 
 ## ⚠️ 免责声明
 
-本项目仅供学习和研究使用，不构成任何投资建议。股市有风险，投资需谨慎。作者不对使用本项目产生的任何损失负责。
+本项目仅供学习和研究使用，不构成任何投资建议。基金投资有风险，投资需谨慎。作者不对使用本项目产生的任何损失负责。
 
 ---
 
@@ -279,7 +279,7 @@ daily_stock_analysis/
 ###### ☕ 请我喝杯咖啡
 - 如果觉得本项目对你有帮助且行有余力，可以请我喝杯咖啡，支持项目的持续维护与迭代；不赞赏也完全不影响使用。   
 <small>（赞赏时可备注联系方式，方便私信致谢与后续交流反馈）</small>
-- 感谢支持, 祝您股市长虹，拿主力当提款机。
+- 感谢支持, 祝您投资顺利，稳健获利。
 
 <div align="center">
   <img src="./sources/wechatpay.jpg" alt="WeChat Pay" width="200" style="margin-right: 20px;">
