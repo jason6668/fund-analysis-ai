@@ -1,4 +1,4 @@
-name: 每日股票分析
+name: 每日基金分析
 
 on:
   # 定时触发 - 每天北京时间 18:00 (UTC 10:00)
@@ -14,13 +14,13 @@ on:
         default: 'full'
         type: choice
         options:
-          - full          # 完整分析（股票+大盘）
-          - market-only   # 仅大盘复盘
-          - stocks-only   # 仅股票分析
+          - full          # 完整分析
+          - market-only   # 仅市场复盘
+          - funds-only    # 仅基金分析
 
 # 并发控制：同一时间只运行一个分析任务
 concurrency:
-  group: stock-analysis
+  group: fund-analysis
   cancel-in-progress: false
 
 jobs:
@@ -48,14 +48,14 @@ jobs:
         run: |
           mkdir -p data logs reports
       
-      - name: 执行股票分析
+      - name: 执行基金分析
         env:
           # ==========================================
           # AI 配置
           # ==========================================
           # Gemini AI（主选）
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || secrets.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || secrets.GEMINI_MODEL || 'gemini-3-flash-preview' }}
           GEMINI_MODEL_FALLBACK: ${{ vars.GEMINI_MODEL_FALLBACK || secrets.GEMINI_MODEL_FALLBACK || 'gemini-2.0-flash' }}
           GEMINI_REQUEST_DELAY: '3.0'
           
@@ -117,9 +117,10 @@ jobs:
           FEISHU_FOLDER_TOKEN: ${{ secrets.FEISHU_FOLDER_TOKEN }}
           
           # ==========================================
-          # 自选股配置
+          # 自选基金配置
           # ==========================================
-          STOCK_LIST: ${{ vars.STOCK_LIST || secrets.STOCK_LIST || '600519' }}
+          FUND_LIST: ${{ vars.FUND_LIST || secrets.FUND_LIST || vars.STOCK_LIST || secrets.STOCK_LIST || '005827,110022' }}
+          STOCK_LIST: ${{ vars.STOCK_LIST || secrets.STOCK_LIST }}
           
           # ==========================================
           # 运行配置 ⬅️ 新增！
@@ -142,11 +143,11 @@ jobs:
           MODE="${{ github.event.inputs.mode || 'full' }}"
           
           echo "=========================================="
-          echo "🚀 A股自选股智能分析系统"
+          echo "🚀 基金智能分析系统"
           echo "=========================================="
           echo "⏰ 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
           echo "🎯 运行模式: $MODE"
-          echo "📊 自选股: $STOCK_LIST"
+          echo "📊 自选基金: $FUND_LIST"
           echo "📝 报告类型: $REPORT_TYPE"
           echo ""
           echo "=========================================="
@@ -172,7 +173,7 @@ jobs:
           # 执行分析
           if [ "$MODE" = "market-only" ]; then
             python main.py --market-review
-          elif [ "$MODE" = "stocks-only" ]; then
+          elif [ "$MODE" = "funds-only" ]; then
             python main.py --no-market-review
           else
             python main.py
