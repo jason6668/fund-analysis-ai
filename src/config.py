@@ -262,17 +262,22 @@ class Config:
                 os.environ['https_proxy'] = https_proxy
 
         
-        # 解析自选股列表（逗号分隔）
-        stock_list_str = os.getenv('STOCK_LIST', '')
+        # 解析基金/股票列表（逗号分隔）
+        # 优先读取 FUND_LIST，如果不存在则尝试 STOCK_LIST（兼容性）
+        fund_list_str = os.getenv('FUND_LIST', '')
+        if not fund_list_str:
+            # 兼容旧配置
+            fund_list_str = os.getenv('STOCK_LIST', '')
+        
         stock_list = [
             code.strip() 
-            for code in stock_list_str.split(',') 
+            for code in fund_list_str.split(',') 
             if code.strip()
         ]
         
-        # 如果没有配置，使用默认的示例股票
+        # 如果没有配置，使用默认的示例基金
         if not stock_list:
-            stock_list = ['600519', '000001', '300750']
+            stock_list = ['000001', '110022', '163406']  # 华夏成长、易方达价值成长、兴全合润
         
         # 解析搜索引擎 API Keys（支持多个 key，逗号分隔）
         bocha_keys_str = os.getenv('BOCHA_API_KEYS', '')
@@ -378,30 +383,36 @@ class Config:
 
     def refresh_stock_list(self) -> None:
         """
-        热读取 STOCK_LIST 环境变量并更新配置中的自选股列表
+        热读取 FUND_LIST/STOCK_LIST 环境变量并更新配置中的列表
         
         支持两种配置方式：
         1. .env 文件（本地开发、定时任务模式） - 修改后下次执行自动生效
         2. 系统环境变量（GitHub Actions、Docker） - 启动时固定，运行中不变
         """
-        # 若 .env 中配置了 STOCK_LIST，则以 .env 为准；否则回退到系统环境变量
+        # 若 .env 中配置了 FUND_LIST，则以 FUND_LIST 为准；否则尝试 STOCK_LIST
         env_path = Path(__file__).parent / '.env'
-        stock_list_str = ''
+        fund_list_str = ''
         if env_path.exists():
             env_values = dotenv_values(env_path)
-            stock_list_str = (env_values.get('STOCK_LIST') or '').strip()
+            fund_list_str = (env_values.get('FUND_LIST') or '').strip()
+            if not fund_list_str:
+                # 兼容旧配置
+                fund_list_str = (env_values.get('STOCK_LIST') or '').strip()
 
-        if not stock_list_str:
-            stock_list_str = os.getenv('STOCK_LIST', '')
+        if not fund_list_str:
+            # 尝试从系统环境变量读取
+            fund_list_str = os.getenv('FUND_LIST', '')
+            if not fund_list_str:
+                fund_list_str = os.getenv('STOCK_LIST', '')
 
         stock_list = [
             code.strip()
-            for code in stock_list_str.split(',')
+            for code in fund_list_str.split(',')
             if code.strip()
         ]
 
         if not stock_list:        
-            stock_list = ['000001']
+            stock_list = ['000001']  # 默认华夏成长
 
         self.stock_list = stock_list
     

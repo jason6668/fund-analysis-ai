@@ -41,10 +41,10 @@ from src.feishu_doc import FeishuDocManager
 
 from src.config import get_config, Config
 from src.notification import NotificationService
-from src.core.pipeline import StockAnalysisPipeline
-from src.core.market_review import run_market_review
+from src.core.fund_pipeline import FundAnalysisPipeline
+# from src.core.market_review import run_market_review # 暂时注释，需要适配基金
 from src.search_service import SearchService
-from src.analyzer import GeminiAnalyzer
+# from src.analyzer import GeminiAnalyzer # 暂时移除股票分析器
 
 # 配置日志格式
 LOG_FORMAT = '%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s'
@@ -228,81 +228,77 @@ def run_full_analysis(
             config.single_stock_notify = True
         
         # 创建调度器
-        pipeline = StockAnalysisPipeline(
+        # 创建调度器
+        pipeline = FundAnalysisPipeline(
             config=config,
             max_workers=args.workers
         )
         
         # 1. 运行个基分析
         results = pipeline.run(
-            stock_codes=fund_codes,
+            fund_codes=fund_codes,
             dry_run=args.dry_run,
             send_notification=not args.no_notify
         )
 
-        # Issue #128: 分析间隔 - 在个股分析和大盘分析之间添加延迟
-        analysis_delay = getattr(config, 'analysis_delay', 0)
-        if analysis_delay > 0 and config.market_review_enabled and not args.no_market_review:
-            logger.info(f"等待 {analysis_delay} 秒后执行大盘复盘（避免API限流）...")
-            time.sleep(analysis_delay)
+        # Issue #128: 分析间隔 - 在个基分析和市场复盘之间添加延迟
+        # analysis_delay = getattr(config, 'analysis_delay', 0)
+        # if analysis_delay > 0 and config.market_review_enabled and not args.no_market_review:
+        #     logger.info(f"等待 {analysis_delay} 秒后执行市场复盘...")
+        #     time.sleep(analysis_delay)
 
-        # 2. 运行大盘复盘（如果启用且不是仅个股模式）
-        market_report = ""
-        if config.market_review_enabled and not args.no_market_review:
-            # 只调用一次，并获取结果
-            review_result = run_market_review(
-                notifier=pipeline.notifier,
-                analyzer=pipeline.analyzer,
-                search_service=pipeline.search_service
-            )
-            # 如果有结果，赋值给 market_report 用于后续飞书文档生成
-            if review_result:
-                market_report = review_result
+        # 2. 运行市场复盘（如果启用）- 暂时跳过，后续适配基金市场复盘
+        # market_report = ""
+        # if config.market_review_enabled and not args.no_market_review:
+            # logger.info("正在执行市场复盘...")
+            # # TODO: 适配基金市场复盘
+            # pass
         
         # 输出摘要
         if results:
             logger.info("\n===== 分析结果摘要 =====")
-            for r in sorted(results, key=lambda x: x.sentiment_score, reverse=True):
-                emoji = r.get_emoji()
+            for r in sorted(results, key=lambda x: x.signal_score, reverse=True):
+                # 简单的控制台输出，r 是 FundAnalysisResult 对象
                 logger.info(
-                    f"{emoji} {r.name}({r.code}): {r.operation_advice} | "
-                    f"评分 {r.sentiment_score} | {r.trend_prediction}"
+                    f"{r.name}({r.code}): {r.buy_signal.value} | "
+                    f"评分 {r.signal_score} | {r.entry_timing}"
                 )
         
         logger.info("\n任务执行完成")
 
         # === 新增：生成飞书云文档 ===
-        try:
-            feishu_doc = FeishuDocManager()
-            if feishu_doc.is_configured() and (results or market_report):
-                logger.info("正在创建飞书云文档...")
+        # === 新增：生成飞书云文档 ===
+        # try:
+        #     feishu_doc = FeishuDocManager()
+        #     if feishu_doc.is_configured() and (results or market_report):
+        #         logger.info("正在创建飞书云文档...")
 
-                # 1. 准备标题 "01-01 13:01大盘复盘"
-                tz_cn = timezone(timedelta(hours=8))
-                now = datetime.now(tz_cn)
-                doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} 大盘复盘"
+        #         # 1. 准备标题 "01-01 13:01大盘复盘"
+        #         tz_cn = timezone(timedelta(hours=8))
+        #         now = datetime.now(tz_cn)
+        #         doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} 大盘复盘"
 
-                # 2. 准备内容 (拼接个股分析和大盘复盘)
-                full_content = ""
+        #         # 2. 准备内容 (拼接个股分析和大盘复盘)
+        #         full_content = ""
 
-                # 添加大盘复盘内容（如果有）
-                if market_report:
-                    full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
+        #         # 添加大盘复盘内容（如果有）
+        #         if market_report:
+        #             full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
 
-                # 添加个股决策仪表盘（使用 NotificationService 生成）
-                if results:
-                    dashboard_content = pipeline.notifier.generate_dashboard_report(results)
-                    full_content += f"# 🚀 个股决策仪表盘\n\n{dashboard_content}"
+        #         # 添加个股决策仪表盘（使用 NotificationService 生成）
+        #         if results:
+        #             dashboard_content = pipeline.notifier.generate_dashboard_report(results)
+        #             full_content += f"# 🚀 个股决策仪表盘\n\n{dashboard_content}"
 
-                # 3. 创建文档
-                doc_url = feishu_doc.create_daily_doc(doc_title, full_content)
-                if doc_url:
-                    logger.info(f"飞书云文档创建成功: {doc_url}")
-                    # 可选：将文档链接也推送到群里
-                    pipeline.notifier.send(f"[{now.strftime('%Y-%m-%d %H:%M')}] 复盘文档创建成功: {doc_url}")
+        #         # 3. 创建文档
+        #         doc_url = feishu_doc.create_daily_doc(doc_title, full_content)
+        #         if doc_url:
+        #             logger.info(f"飞书云文档创建成功: {doc_url}")
+        #             # 可选：将文档链接也推送到群里
+        #             pipeline.notifier.send(f"[{now.strftime('%Y-%m-%d %H:%M')}] 复盘文档创建成功: {doc_url}")
 
-        except Exception as e:
-            logger.error(f"飞书文档生成失败: {e}")
+        # except Exception as e:
+        #     logger.error(f"飞书文档生成失败: {e}")
         
     except Exception as e:
         logger.exception(f"分析流程执行失败: {e}")
