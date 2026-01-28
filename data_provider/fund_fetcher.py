@@ -31,6 +31,8 @@ class FundDataFetcher:
         """初始化基金数据获取器"""
         if ak is None:
             logger.warning("AkShare 未安装，请运行: pip install akshare")
+        # 缓存基金列表，避免重复获取
+        self._fund_list_df = None
             
     def get_fund_info(self, fund_code: str) -> Optional[Dict[str, Any]]:
         """
@@ -47,23 +49,58 @@ class FundDataFetcher:
                 logger.error("AkShare 未安装")
                 return None
                 
-            # 获取基金基本信息
-            df = ak.fund_em_fund_name()
-            fund_info = df[df['基金代码'] == fund_code]
-            
-            if fund_info.empty:
-                logger.warning(f"未找到基金 {fund_code} 的信息")
-                return None
+            # 1. 尝试使用 fund_individual_basic_info_xf 获取详细信息
+            try:
+                # 尝试使用新版接口（如果有）
+                if hasattr(ak, 'fund_individual_basic_info_xf'):
+                    df_info = ak.fund_individual_basic_info_xf(symbol=fund_code)
+                    if df_info is not None and not df_info.empty:
+                        # 解析晨星数据
+                        # 通常包含：基金代码, 基金名称, 基金类型, 成立日期, ...
+                        # 这里做一个简单的映射，具体字段可能需要根据实际返回调整
+                        # 暂时只取名称，如果需要更多信息可以进一步解析
+                        return {
+                            'code': fund_code,
+                            'name': df_info['基金名称'].iloc[0] if '基金名称' in df_info.columns else '',
+                            'type': df_info['基金类型'].iloc[0] if '基金类型' in df_info.columns else '',
+                            'company': df_info['基金管理人'].iloc[0] if '基金管理人' in df_info.columns else '',
+                            'manager': df_info['基金经理'].iloc[0] if '基金经理' in df_info.columns else '',
+                        }
+            except Exception as e_xf:
+                logger.debug(f"晨星接口获取失败，尝试备用接口: {e_xf}")
+
+            # 2. 回退到 fund_name_em (获取全量列表)
+            if self._fund_list_df is None:
+                try:
+                    if hasattr(ak, 'fund_name_em'):
+                         self._fund_list_df = ak.fund_name_em()
+                    elif hasattr(ak, 'fund_em_fund_name'):
+                         self._fund_list_df = ak.fund_em_fund_name()
+                    else:
+                        logger.error("未找到可用的基金列表接口 (fund_name_em/fund_em_fund_name)")
+                        return None
+                except Exception as e:
+                    logger.error(f"获取基金列表失败: {e}")
+                    return None
+
+            if self._fund_list_df is not None:
+                fund_info = self._fund_list_df[self._fund_list_df['基金代码'] == fund_code]
                 
-            info = fund_info.iloc[0].to_dict()
+                if fund_info.empty:
+                    logger.warning(f"未找到基金 {fund_code} 的信息")
+                    return None
+                    
+                info = fund_info.iloc[0].to_dict()
+                
+                return {
+                    'code': fund_code,
+                    'name': info.get('基金简称', ''),
+                    'type': info.get('基金类型', ''),
+                    'company': info.get('基金公司', ''),  # fund_name_em 可能不包含公司/经理
+                    'manager': info.get('基金经理', ''),
+                }
             
-            return {
-                'code': fund_code,
-                'name': info.get('基金简称', ''),
-                'type': info.get('基金类型', ''),
-                'company': info.get('基金公司', ''),
-                'manager': info.get('基金经理', ''),
-            }
+            return None
             
         except Exception as e:
             logger.error(f"获取基金 {fund_code} 信息失败: {e}")
@@ -86,7 +123,13 @@ class FundDataFetcher:
                 return None
                 
             # 获取基金净值数据
-            df = ak.fund_em_open_fund_info(fund=fund_code, indicator="单位净值走势")
+            # 兼容新旧接口: fund_open_fund_info_em / fund_em_open_fund_info
+            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
+            if func is None:
+                logger.error("未找到可用的基金净值接口 (fund_open_fund_info_em)")
+                return None
+                
+            df = func(fund=fund_code, indicator="单位净值走势")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的净值数据")
@@ -137,7 +180,13 @@ class FundDataFetcher:
                 return None
             
             # 获取基金阶段涨幅
-            df = ak.fund_em_open_fund_info(fund=fund_code, indicator="阶段涨幅")
+            # 兼容新旧接口
+            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
+            if func is None:
+                logger.error("未找到可用的基金业绩接口")
+                return None
+                
+            df = func(fund=fund_code, indicator="阶段涨幅")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的业绩数据")
@@ -189,7 +238,12 @@ class FundDataFetcher:
                 return None
             
             # 获取基金持仓
-            df = ak.fund_em_open_fund_info(fund=fund_code, indicator="基金持仓")
+            # 兼容新旧接口
+            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
+            if func is None:
+                return None
+            
+            df = func(fund=fund_code, indicator="基金持仓")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的持仓数据")
@@ -225,7 +279,12 @@ class FundDataFetcher:
                 return None
             
             # 获取基金实时数据
-            df = ak.fund_em_open_fund_info(fund=fund_code, indicator="实时估值")
+            # 兼容新旧接口
+            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
+            if func is None:
+                return None
+            
+            df = func(fund=fund_code, indicator="实时估值")
             
             if df is None or df.empty:
                 # 如果没有实时数据，返回基本信息
