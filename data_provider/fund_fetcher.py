@@ -123,13 +123,15 @@ class FundDataFetcher:
                 return None
                 
             # 获取基金净值数据
-            # 兼容新旧接口: fund_open_fund_info_em / fund_em_open_fund_info
-            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
-            if func is None:
+            # 兼容新旧接口: fund_open_fund_info_em(symbol=) / fund_em_open_fund_info(fund=)
+            df = None
+            if hasattr(ak, 'fund_open_fund_info_em'):
+                df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
+            elif hasattr(ak, 'fund_em_open_fund_info'):
+                df = ak.fund_em_open_fund_info(fund=fund_code, indicator="单位净值走势")
+            else:
                 logger.error("未找到可用的基金净值接口 (fund_open_fund_info_em)")
                 return None
-                
-            df = func(fund=fund_code, indicator="单位净值走势")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的净值数据")
@@ -181,12 +183,14 @@ class FundDataFetcher:
             
             # 获取基金阶段涨幅
             # 兼容新旧接口
-            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
-            if func is None:
+            df = None
+            if hasattr(ak, 'fund_open_fund_info_em'):
+                df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="阶段涨幅")
+            elif hasattr(ak, 'fund_em_open_fund_info'):
+                df = ak.fund_em_open_fund_info(fund=fund_code, indicator="阶段涨幅")
+            else:
                 logger.error("未找到可用的基金业绩接口")
                 return None
-                
-            df = func(fund=fund_code, indicator="阶段涨幅")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的业绩数据")
@@ -239,11 +243,13 @@ class FundDataFetcher:
             
             # 获取基金持仓
             # 兼容新旧接口
-            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
-            if func is None:
+            df = None
+            if hasattr(ak, 'fund_open_fund_info_em'):
+                df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="基金持仓")
+            elif hasattr(ak, 'fund_em_open_fund_info'):
+                df = ak.fund_em_open_fund_info(fund=fund_code, indicator="基金持仓")
+            else:
                 return None
-            
-            df = func(fund=fund_code, indicator="基金持仓")
             
             if df is None or df.empty:
                 logger.warning(f"未找到基金 {fund_code} 的持仓数据")
@@ -280,11 +286,13 @@ class FundDataFetcher:
             
             # 获取基金实时数据
             # 兼容新旧接口
-            func = getattr(ak, 'fund_open_fund_info_em', None) or getattr(ak, 'fund_em_open_fund_info', None)
-            if func is None:
+            df = None
+            if hasattr(ak, 'fund_open_fund_info_em'):
+                df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="实时估值")
+            elif hasattr(ak, 'fund_em_open_fund_info'):
+                df = ak.fund_em_open_fund_info(fund=fund_code, indicator="实时估值")
+            else:
                 return None
-            
-            df = func(fund=fund_code, indicator="实时估值")
             
             if df is None or df.empty:
                 # 如果没有实时数据，返回基本信息
